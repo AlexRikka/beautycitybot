@@ -18,7 +18,7 @@ def callback_handler(update, context):
         'show_prices': show_prices,
         'show_days': show_days,
         'show_hours': show_hours,
-        'ask_phone_number': ask_phone_number,
+        'ask_phone_number': ask_phone_number
     }
     COMMANDS[update.callback_query.data](update, context)
 
@@ -131,12 +131,11 @@ def pdconsent_agreed(update, context):
             InlineKeyboardButton(
                 "По мастеру",
                 callback_data='show_masters'
-            )
-            # ,
-            # InlineKeyboardButton(
-            #     "По услуге",
-            #     callback_data='show_services'
-            # ),
+            ),
+            InlineKeyboardButton(
+                "По услуге",
+                callback_data='show_services'
+            ),
         ]])
     )
 
@@ -150,7 +149,7 @@ def pdconsent_refuse(update, context):
     start_again(update, context)
 
 
-# location
+# saloons
 def show_locations(update, context):
     """Вывести список салонов."""
     saloons = Saloon.objects.all()
@@ -164,34 +163,6 @@ def show_locations(update, context):
         chat_id=update.effective_chat.id,
         text="Наши салоны:",
         reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-
-
-# masters
-def show_masters(update, context):
-    """Вывести список мастеров."""
-    masters = Master.objects.all()
-    keyboard = [
-        [InlineKeyboardButton(
-            master.name,
-            callback_data=f'show_master_saloons {master.id}'
-        )] for master in masters
-    ]
-    context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Наши мастера:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-
-
-# services
-def show_services(update, context):
-    """Вывести список услуг."""
-    services = Service.objects.all()
-    context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Наши услуги:",
-        reply_markup=create_keyboard(services)
     )
 
 
@@ -221,6 +192,23 @@ def show_saloon_services(update, context):
         text=f'Услуги салона {Saloon.objects.get(id=saloon_id)}:\n' +
              f'{price_list}',
         reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# masters
+def show_masters(update, context):
+    """Вывести список мастеров."""
+    masters = Master.objects.all()
+    keyboard = [
+        [InlineKeyboardButton(
+            master.name,
+            callback_data=f'show_master_saloons {master.id}'
+        )] for master in masters
+    ]
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Наши мастера:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
@@ -260,6 +248,42 @@ def show_master_services_in_saloon(update, context):
         chat_id=update.effective_chat.id,
         text=f'Услуги мастера {Master.objects.get(id=master_id)} '
              f'в салоне {Saloon.objects.get(id=saloon_id)}:',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+# services
+def show_services(update, context):
+    """Вывести список услуг."""
+    services = Service.objects.all()
+    keyboard = [
+        [InlineKeyboardButton(
+            service.name,
+            callback_data=f'show_service_saloons {service.id}'
+        )] for service in services
+    ]
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Наши услуги:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def show_service_saloons(update, context):
+    """Показать салоны в которых есть выбранная услуга."""
+    service_id = update.callback_query.data.split()[1]
+    client_choices['service_id'] = service_id
+    service_saloons = Saloon.objects.filter(services=service_id)
+    keyboard = [
+        [InlineKeyboardButton(
+            saloon.name,
+            callback_data=f'show_days {service_id} '
+                          f'{saloon.id}'
+        )] for saloon in service_saloons
+    ]
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f'{Service.objects.get(id=service_id)} доступны в салонах:',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
