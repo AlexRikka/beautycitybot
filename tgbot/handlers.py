@@ -130,11 +130,11 @@ def pdconsent_agreed(update, context):
             InlineKeyboardButton(
                 "По мастеру",
                 callback_data='show_masters'
-            ),
-            InlineKeyboardButton(
-                "По услуге",
-                callback_data='show_services'
-            ),
+            )#,
+            # InlineKeyboardButton(
+            #     "По услуге",
+            #     callback_data='show_services'
+            # ),
         ]])
     )
 
@@ -348,5 +348,10 @@ def registration_success(update, context):
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Вы успешно записаны на процедуру!",
+    )
+    time.sleep(8640000)
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Прошло 100 дней с Вашей последней записи, предлагаем записаться снова на процедуру!",
     )
     start_again(update, context)
