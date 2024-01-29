@@ -1,4 +1,5 @@
-from datetime import datetime, time, timedelta
+import time
+import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from saloons.models import Client, Master, Saloon, Service, Sign
@@ -130,7 +131,8 @@ def pdconsent_agreed(update, context):
             InlineKeyboardButton(
                 "По мастеру",
                 callback_data='show_masters'
-            )#,
+            )
+            # ,
             # InlineKeyboardButton(
             #     "По услуге",
             #     callback_data='show_services'
@@ -292,8 +294,9 @@ def show_prices(update, context):
 def show_days(update, context):
     service_id = update.callback_query.data.split()[1]
     client_choices['service_id'] = service_id
-    today = datetime.today()
-    next_two_weeks = [today + timedelta(days=1) * i for i in range(14)]
+    today = datetime.datetime.today()
+    next_two_weeks = [
+        today + datetime.timedelta(days=1) * i for i in range(14)]
     keyboard = [
         [InlineKeyboardButton(
             day.strftime("%d.%m"),
@@ -308,11 +311,11 @@ def show_days(update, context):
 
 
 def show_hours(update, context):
-    hours = [time(i) for i in range(9, 21)]
+    hours = [datetime.time(i) for i in range(9, 21)]
     keyboard = [
         [InlineKeyboardButton(
             (f'{hour.strftime("%H:%M")}-'
-             f'{time(hour.hour + 1).strftime("%H:%M")}'),
+             f'{datetime.time(hour.hour + 1).strftime("%H:%M")}'),
             callback_data='ask_phone_number'  # f' {hour.hour}' add later
         )] for hour in hours
     ]
