@@ -184,7 +184,7 @@ def show_saloon_services(update, context):
     saloon_services_keyboard = [
         [InlineKeyboardButton(
             service.name,
-            callback_data=f'show_days {service.id}'
+            callback_data=f'show_days_any_master {service.id}'
         )] for service in saloon_services]
     saloon_services_keyboard.append(
         [InlineKeyboardButton(
@@ -306,6 +306,54 @@ def show_days(update, context):
     )
 
 
+def show_days_any_master(update, context):
+    service_id = update.callback_query.data.split()[1]
+    client_choices['service_id'] = service_id
+    today = datetime.datetime.today()
+    next_two_weeks = [
+        today + datetime.timedelta(days=1) * i for i in range(14)]
+    masters = Master.objects.filter(
+        services=Service.objects.get(id=service_id),
+        saloons=Saloon.objects.get(id=client_choices['saloon_id']),
+    )
+    signs = Sign.objects.filter(
+        service=Service.objects.get(id=service_id),
+        saloon=Saloon.objects.get(id=client_choices['saloon_id'])
+    )
+    schedule = {}
+    for master in masters:
+        signs = Sign.objects.filter(
+            saloon=Saloon.objects.get(id=client_choices['saloon_id']),
+            master=master,
+        )
+        for sign in signs:
+            date = sign.date.strftime("%d.%m")
+            time = sign.time.hour
+            if date not in schedule:
+                schedule[date] = []
+            for i in range(sign.service.duration.seconds // 3600):
+                schedule[date].append(f'{time + i}:00-{time + i + 1}:00')
+    booked_days = []
+    for date, intervals in schedule.items():
+        if len(intervals) >= 12:
+            booked_days.append(date)
+    free_days = []
+    for day in next_two_weeks:
+        if not (day.strftime("%d.%m") in booked_days):
+            free_days.append(day)
+    keyboard = [
+        [InlineKeyboardButton(
+            day.strftime("%d.%m"),
+            callback_data=f'show_hours_any_master {day.day} {day.month}'
+        )] for day in free_days
+    ]
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Выберите день:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
 def show_hours(update, context):
     day = int(update.callback_query.data.split()[1])
     month = int(update.callback_query.data.split()[2])
@@ -315,6 +363,43 @@ def show_hours(update, context):
     hours = [datetime.time(i) for i in range(9, 21)]
     signs = Sign.objects.filter(
         master=Master.objects.get(id=client_choices['master_id']),
+        date=date,
+    )
+    print(signs)
+    booked_hours = []
+    for sign in signs:
+        time = sign.time.hour
+        for i in range(sign.service.duration.seconds // 3600):
+            booked_hours.append(f'{time + i}:00')
+    print(booked_hours)
+    free_hours = []
+    for hour in hours:
+        if not (hour.strftime('%H:%M') in booked_hours):
+            free_hours.append(hour)
+    keyboard = [
+        [InlineKeyboardButton(
+            (f'{hour.strftime("%H:%M")}-'
+             f'{datetime.time(hour.hour + 1).strftime("%H:%M")}'),
+            callback_data=f'ask_phone_number {hour.hour}'
+        )] for hour in free_hours
+    ]
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Выберите время:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def show_hours_any_master(update, context):
+    day = int(update.callback_query.data.split()[1])
+    month = int(update.callback_query.data.split()[2])
+    date = datetime.date(
+        day=day, month=month, year=datetime.datetime.today().year)
+    client_choices['date'] = date
+    hours = [datetime.time(i) for i in range(9, 21)]
+    signs = Sign.objects.filter(
+        service=Service.objects.get(id=client_choices['service_id']),
+        saloon=Saloon.objects.get(id=client_choices['saloon_id']),
         date=date,
     )
     print(signs)
@@ -358,14 +443,23 @@ def registration_success(update, context):
     Client.objects.filter(
         username=client_choices['username']
     ).update(phone_number=client_choices['phone_number'])
-    new_sign = Sign.objects.create(
-        saloon=Saloon.objects.get(id=client_choices['saloon_id']),
-        master=Master.objects.get(id=client_choices['master_id']),
-        service=Service.objects.get(id=client_choices['service_id']),
-        client=current_user,
-        date=client_choices['date'],
-        time=client_choices['time'],
-    )
+    if client_choices['master_id']:
+        new_sign = Sign.objects.create(
+            saloon=Saloon.objects.get(id=client_choices['saloon_id']),
+            master=Master.objects.get(id=client_choices['master_id']),
+            service=Service.objects.get(id=client_choices['service_id']),
+            client=current_user,
+            date=client_choices['date'],
+            time=client_choices['time'],
+        )
+    else:
+        new_sign = Sign.objects.create(
+            saloon=Saloon.objects.get(id=client_choices['saloon_id']),
+            service=Service.objects.get(id=client_choices['service_id']),
+            client=current_user,
+            date=client_choices['date'],
+            time=client_choices['time'],
+        )
     new_sign.save()
     context.bot.send_message(
         chat_id=update.effective_chat.id,
