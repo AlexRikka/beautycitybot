@@ -51,6 +51,12 @@ def setup_dispatcher(dp):
         pattern=r'^show_master_saloons\s[0-9]+',
     ))
 
+    # show_service_saloons callback
+    dp.add_handler(CallbackQueryHandler(
+        handlers.show_service_saloons,
+        pattern=r'^show_service_saloons\s[0-9]+',
+    ))
+
     # show_master_services_in_saloon callback
     dp.add_handler(CallbackQueryHandler(
         handlers.show_master_services_in_saloon,
@@ -63,10 +69,16 @@ def setup_dispatcher(dp):
         pattern=r'^show_days\s[0-9]+',
     ))
 
-    # show_days_any_master callback
+    # show_days_any_master_for_saloons callback
     dp.add_handler(CallbackQueryHandler(
-        handlers.show_days_any_master,
-        pattern=r'^show_days_any_master\s[0-9]+',
+        handlers.show_days_any_master_for_saloons,
+        pattern=r'^show_days_any_master_for_saloons\s[0-9]+',
+    ))
+
+    # show_days_any_master_for_services callback
+    dp.add_handler(CallbackQueryHandler(
+        handlers.show_days_any_master_for_services,
+        pattern=r'^show_days_any_master_for_services\s[0-9]+',
     ))
 
     # show_hours callback

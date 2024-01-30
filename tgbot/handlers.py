@@ -169,10 +169,16 @@ def show_masters(update, context):
 def show_services(update, context):
     """Вывести список услуг."""
     services = Service.objects.all()
+    keyboard = [
+        [InlineKeyboardButton(
+            service.name,
+            callback_data=f'show_service_saloons {service.id}'
+        )] for service in services
+    ]
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="Наши услуги:",
-        reply_markup=create_keyboard(services)
+        text="Список услуг:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
@@ -184,7 +190,7 @@ def show_saloon_services(update, context):
     saloon_services_keyboard = [
         [InlineKeyboardButton(
             service.name,
-            callback_data=f'show_days_any_master {service.id}'
+            callback_data=f'show_days_any_master_for_saloons {service.id}'
         )] for service in saloon_services]
     saloon_services_keyboard.append(
         [InlineKeyboardButton(
@@ -214,6 +220,24 @@ def show_master_saloons(update, context):
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=f'{Master.objects.get(id=master_id)} работает в салонах:',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def show_service_saloons(update, context):
+    """Показать сервисы доступные в салоне."""
+    service_id = update.callback_query.data.split()[1]
+    client_choices['service_id'] = service_id
+    service_saloons = Saloon.objects.filter(services=service_id)
+    keyboard = [
+        [InlineKeyboardButton(
+            saloon.name,
+            callback_data=f'show_days_any_master_for_services {saloon.id}'
+        )] for saloon in service_saloons
+    ]
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f'{Service.objects.get(id=service_id)} есть в салонах:',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -306,7 +330,7 @@ def show_days(update, context):
     )
 
 
-def show_days_any_master(update, context):
+def show_days_any_master_for_saloons(update, context):
     service_id = update.callback_query.data.split()[1]
     client_choices['service_id'] = service_id
     today = datetime.datetime.today()
@@ -324,6 +348,54 @@ def show_days_any_master(update, context):
     for master in masters:
         signs = Sign.objects.filter(
             saloon=Saloon.objects.get(id=client_choices['saloon_id']),
+            master=master,
+        )
+        for sign in signs:
+            date = sign.date.strftime("%d.%m")
+            time = sign.time.hour
+            if date not in schedule:
+                schedule[date] = []
+            for i in range(sign.service.duration.seconds // 3600):
+                schedule[date].append(f'{time + i}:00-{time + i + 1}:00')
+    booked_days = []
+    for date, intervals in schedule.items():
+        if len(intervals) >= 12:
+            booked_days.append(date)
+    free_days = []
+    for day in next_two_weeks:
+        if not (day.strftime("%d.%m") in booked_days):
+            free_days.append(day)
+    keyboard = [
+        [InlineKeyboardButton(
+            day.strftime("%d.%m"),
+            callback_data=f'show_hours_any_master {day.day} {day.month}'
+        )] for day in free_days
+    ]
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Выберите день:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def show_days_any_master_for_services(update, context):
+    saloon_id = update.callback_query.data.split()[1]
+    client_choices['saloon_id'] = saloon_id
+    today = datetime.datetime.today()
+    next_two_weeks = [
+        today + datetime.timedelta(days=1) * i for i in range(14)]
+    masters = Master.objects.filter(
+        services=Service.objects.get(id=client_choices['service_id']),
+        saloons=Saloon.objects.get(id=saloon_id),
+    )
+    signs = Sign.objects.filter(
+        service=Service.objects.get(id=client_choices['service_id']),
+        saloon=Saloon.objects.get(id=saloon_id),
+    )
+    schedule = {}
+    for master in masters:
+        signs = Sign.objects.filter(
+            saloon=Saloon.objects.get(id=saloon_id),
             master=master,
         )
         for sign in signs:
