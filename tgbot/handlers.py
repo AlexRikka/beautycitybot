@@ -181,27 +181,22 @@ def show_saloon_services(update, context):
     saloon_id = update.callback_query.data.split()[1]
     client_choices['saloon_id'] = saloon_id
     saloon_services = Service.objects.filter(saloons=saloon_id)
+    saloon_services_keyboard = [
+        [InlineKeyboardButton(
+            service.name,
+            callback_data=f'show_days {service.id}'
+        )] for service in saloon_services]
+    saloon_services_keyboard.append(
+        [InlineKeyboardButton(
+            'Показать цены на все услуги',
+            callback_data='show_prices',)])
     price_list = '\n'.join(
         f'{service.name} - {service.price}р.' for service in saloon_services)
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                'Показать цены на все услуги',
-                callback_data='show_prices',
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                'Показать даты для записи',
-                callback_data='show_days',
-            )
-        ],
-    ]
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=f'Услуги салона {Saloon.objects.get(id=saloon_id)}:\n' +
              f'{price_list}',
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=InlineKeyboardMarkup(saloon_services_keyboard)
     )
 
 
