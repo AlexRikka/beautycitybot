@@ -54,13 +54,25 @@ def setup_dispatcher(dp):
     # show_master_services_in_saloon callback
     dp.add_handler(CallbackQueryHandler(
         handlers.show_master_services_in_saloon,
-        pattern=r'^show_master_services_in_saloon\s[0-9]+\s[0-9]+',
+        pattern=r'^show_master_services_in_saloon\s[0-9]+',
     ))
 
     # show_days callback
     dp.add_handler(CallbackQueryHandler(
         handlers.show_days,
         pattern=r'^show_days\s[0-9]+',
+    ))
+
+    # show_hours callback
+    dp.add_handler(CallbackQueryHandler(
+        handlers.show_hours,
+        pattern=r'^show_hours\s[0-9]+\s[0-9]+',
+    ))
+
+    # ask_phone_number callback
+    dp.add_handler(CallbackQueryHandler(
+        handlers.ask_phone_number,
+        pattern=r'^ask_phone_number\s[0-9]+',
     ))
 
     # catch phone number

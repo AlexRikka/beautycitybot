@@ -128,6 +128,22 @@ class Master(models.Model):
         return self.name
 
 
+# class Day(models.Model):
+#     """Модель дня записи."""
+#     date = models.DateField()
+
+#     class Meta:
+#         verbose_name = 'Дата'
+#         verbose_name_plural = 'Даты'
+#         ordering = ('date',)
+
+#     def __str__(self):
+#         return self.date.strftime("%d.%m")
+
+#     def is_available(self):
+#         list(self.hours).count() < 12
+
+
 class Sign(models.Model):
     """Запись."""
     saloon = models.ForeignKey(
@@ -153,12 +169,10 @@ class Sign(models.Model):
         related_name='client_signs'
     )
     date = models.DateField(
-        blank=True,
-        null=True,
+        null=True
     )
     time = models.TimeField(
-        blank=True,
-        null=True,
+        null=True
     )
 
     class Meta:
@@ -175,3 +189,32 @@ class Sign(models.Model):
     def get_end_time(self):
         """Получить время окончания процедуры."""
         return self.time + self.service.duration
+
+
+# class Hour(models.Model):
+#     """Модель часа записи."""
+#     start = models.TimeField()
+#     day = models.ForeignKey(
+#         Day,
+#         related_name='hours',
+#         on_delete=models.CASCADE
+#     )
+#     sign = models.ForeignKey(
+#         Sign,
+#         related_name='hours',
+#         on_delete=models.CASCADE,
+#     )
+
+#     class Meta:
+#         verbose_name = 'Час'
+#         verbose_name_plural = 'Часы'
+#         ordering = ('day', 'start', )
+
+#     def __str__(self):
+#         return (
+#             f'{self.start.strftime("%H:%M")}-'
+#             f'{time(self.start.hour + 1).strftime("%H:%M")}'
+#         )
+
+#     def get_end(self):
+#         return self.start + timedelta(hours=1)

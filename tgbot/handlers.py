@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from saloons.models import Client, Master, Saloon, Service, Sign
@@ -213,8 +213,7 @@ def show_master_saloons(update, context):
     keyboard = [
         [InlineKeyboardButton(
             saloon.name,
-            callback_data=f'show_master_services_in_saloon {master_id} '
-                          f'{saloon.id}'
+            callback_data=f'show_master_services_in_saloon {saloon.id}'
         )] for saloon in master_saloons
     ]
     context.bot.send_message(
@@ -226,11 +225,13 @@ def show_master_saloons(update, context):
 
 def show_master_services_in_saloon(update, context):
     """Показать услуги, которые оказывает мастер в определенном салоне."""
-    master_id = update.callback_query.data.split()[1]
-    saloon_id = update.callback_query.data.split()[2]
-    client_choices['master_id'] = master_id
+    saloon_id = update.callback_query.data.split()[1]
     client_choices['saloon_id'] = saloon_id
-    services = Service.objects.filter(masters=master_id, saloons=saloon_id)
+    master_id = client_choices['master_id']
+    services = Service.objects.filter(
+        masters=client_choices['master_id'],
+        saloons=saloon_id
+    )
     keyboard = [
         [InlineKeyboardButton(
             service.name,
@@ -275,13 +276,33 @@ def show_prices(update, context):
 def show_days(update, context):
     service_id = update.callback_query.data.split()[1]
     client_choices['service_id'] = service_id
-    today = datetime.today()
-    next_two_weeks = [today + timedelta(days=1) * i for i in range(14)]
+    today = datetime.datetime.today()
+    next_two_weeks = [
+        today + datetime.timedelta(days=1) * i for i in range(14)]
+    signs = Sign.objects.filter(
+        master=Master.objects.get(id=client_choices['master_id']),
+    )
+    schedule = {}
+    for sign in signs:
+        date = sign.date.strftime("%d.%m")
+        time = sign.time.hour
+        if date not in schedule:
+            schedule[date] = []
+        for i in range(sign.service.duration.seconds // 3600):
+            schedule[date].append(f'{time + i}:00-{time + i + 1}:00')
+    booked_days = []
+    for date, intervals in schedule.items():
+        if len(intervals) >= 12:
+            booked_days.append(date)
+    free_days = []
+    for day in next_two_weeks:
+        if not (day.strftime("%d.%m") in booked_days):
+            free_days.append(day)
     keyboard = [
         [InlineKeyboardButton(
             day.strftime("%d.%m"),
-            callback_data='show_hours'  # f' {day.day} {day.month}' add later
-        )] for day in next_two_weeks
+            callback_data=f'show_hours {day.day} {day.month}'
+        )] for day in free_days
     ]
     context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -291,13 +312,33 @@ def show_days(update, context):
 
 
 def show_hours(update, context):
-    hours = [time(i) for i in range(9, 21)]
+    day = int(update.callback_query.data.split()[1])
+    month = int(update.callback_query.data.split()[2])
+    date = datetime.date(
+        day=day, month=month, year=datetime.datetime.today().year)
+    client_choices['date'] = date
+    hours = [datetime.time(i) for i in range(9, 21)]
+    signs = Sign.objects.filter(
+        master=Master.objects.get(id=client_choices['master_id']),
+        date=date,
+    )
+    print(signs)
+    booked_hours = []
+    for sign in signs:
+        time = sign.time.hour
+        for i in range(sign.service.duration.seconds // 3600):
+            booked_hours.append(f'{time + i}:00')
+    print(booked_hours)
+    free_hours = []
+    for hour in hours:
+        if not (hour.strftime('%H:%M') in booked_hours):
+            free_hours.append(hour)
     keyboard = [
         [InlineKeyboardButton(
             (f'{hour.strftime("%H:%M")}-'
-             f'{time(hour.hour + 1).strftime("%H:%M")}'),
-            callback_data='ask_phone_number'  # f' {hour.hour}' add later
-        )] for hour in hours
+             f'{datetime.time(hour.hour + 1).strftime("%H:%M")}'),
+            callback_data=f'ask_phone_number {hour.hour}'
+        )] for hour in free_hours
     ]
     context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -308,6 +349,8 @@ def show_hours(update, context):
 
 # registration
 def ask_phone_number(update, context):
+    hour = int(update.callback_query.data.split()[1])
+    client_choices['time'] = datetime.time(hour)
     context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Введите номер телефона",
@@ -320,12 +363,13 @@ def registration_success(update, context):
     Client.objects.filter(
         username=client_choices['username']
     ).update(phone_number=client_choices['phone_number'])
-    print(client_choices)
     new_sign = Sign.objects.create(
         saloon=Saloon.objects.get(id=client_choices['saloon_id']),
         master=Master.objects.get(id=client_choices['master_id']),
         service=Service.objects.get(id=client_choices['service_id']),
         client=current_user,
+        date=client_choices['date'],
+        time=client_choices['time'],
     )
     new_sign.save()
     context.bot.send_message(
